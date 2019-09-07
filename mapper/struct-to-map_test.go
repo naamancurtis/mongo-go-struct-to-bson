@@ -5,6 +5,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"time"
 )
@@ -574,5 +575,94 @@ var _ = Describe("The Mapping functions", func() {
 			Expect(result["mapStruct"].(bson.M)["Test 1"]).To(Equal(expectedStruct))
 			Expect(result["mapStruct"].(bson.M)["Test 2"]).To(Equal(expectedStruct))
 		})
+	})
+})
+
+var _ = Describe("The package should be able to map", func() {
+
+	type Metadata struct {
+		LastActive time.Time `bson:"lastActive"`
+	}
+
+	type Characteristics struct {
+		LeftHanded bool `bson:"leftHanded"`
+		Tall bool `bson:"tall"`
+	}
+
+	type User struct {
+		ID        primitive.ObjectID `bson:"_id"`
+		FirstName string `bson:"firstName"`
+		LastName  string `bson:"lastName,omitempty"`
+		DoB       time.Time `bson:"dob,string"`
+		Characteristics *Characteristics `bson:"characteristics,flatten"`
+		Metadata  Metadata `bson:"metadata,omitnested"`
+		Secret string `bson:"-"`
+		favouriteColor string
+	}
+
+	var user User
+
+	objID, _ := primitive.ObjectIDFromHex("54759eb3c090d83494e2d804")
+
+	BeforeEach(func() {
+		user = User{
+			ID:              objID,
+			FirstName:       "Jane",
+			LastName:        "",
+			DoB:             time.Date(1985,6,15,0,0,0,0,time.UTC),
+			Characteristics: &Characteristics{
+				LeftHanded: true,
+				Tall:       false,
+			},
+			Metadata:        Metadata{LastActive: time.Date(2019, 7,23, 14,0,0,0,time.UTC)},
+			Secret:          "secret",
+			favouriteColor:  "blue",
+		}
+	})
+
+	It("an example user profile, with no options", func() {
+		result := ConvertStructToBSONMap(user, nil)
+		expected := bson.M {
+			"_id": objID,
+			"firstName": "Jane",
+			"dob": "1985-06-15 00:00:00 +0000 UTC",
+			"leftHanded": true,
+			"tall": false,
+			"metadata": Metadata{LastActive: time.Date(2019, 7,23, 14,0,0,0,time.UTC)},
+		}
+		Expect(result).To(Equal(expected))
+	})
+
+	It("an example user profile, with UseIDifAvailable", func() {
+		result := ConvertStructToBSONMap(user, &MappingOpts{UseIDifAvailable: true})
+		expected := bson.M {
+			"_id": objID,
+		}
+		Expect(result).To(Equal(expected))
+	})
+
+	It("an example user profile, with RemoveID ", func() {
+		result := ConvertStructToBSONMap(user, &MappingOpts{RemoveID: true})
+		expected := bson.M {
+			"firstName": "Jane",
+			"dob": "1985-06-15 00:00:00 +0000 UTC",
+			"leftHanded": true,
+			"tall": false,
+			"metadata": Metadata{LastActive: time.Date(2019, 7,23, 14,0,0,0,time.UTC)},
+		}
+		Expect(result).To(Equal(expected))
+	})
+
+	It("an example user profile, with GenerateFilter ", func() {
+		user.Metadata = Metadata{}
+		user.ID = primitive.ObjectID{}
+		user.DoB = time.Date(1,1,1,0,0,0,0,time.UTC)
+
+		result := ConvertStructToBSONMap(user, &MappingOpts{GenerateFilter: true})
+		expected := bson.M {
+			"firstName": "Jane",
+			"leftHanded": true,
+		}
+		Expect(result).To(Equal(expected))
 	})
 })
