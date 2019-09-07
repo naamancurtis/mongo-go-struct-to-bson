@@ -38,6 +38,15 @@ type MappingOpts struct {
 	//
 	// 	Default: False
 	RemoveID bool
+
+	// Set to true if you are generating a filter
+	// If true, it will check all struct fields for zero type values and
+	// omit any that are found regardless of any tag options
+	//
+	// This logic occurs after UseIDifAvailable & RemoveID
+	//
+	// 	Default: False
+	GenerateFilter bool
 }
 
 // Returns the Input struct wrapped by the mapper struct
@@ -77,10 +86,10 @@ func (s *StructToBSON) SetTagName(tag string) {
 //
 // Returns:
 //
-//   // bson.M [
-//   //    { Key: "myFirstValue", Value: "Test String" },
+//   // bson.M {
+//   //    { Key: "myFirstValue", Value: "Example String" },
 //   //    { Key: "myIntSlice", Value: {1, 2, 3, 4, 5} },
-//   // ]
+//   // }
 //
 func ConvertStructToBSONMap(s interface{}, opts *MappingOpts) bson.M {
 	if reflect.ValueOf(s).Kind() != reflect.Struct && !(reflect.ValueOf(s).Kind() == reflect.Ptr && reflect.ValueOf(s).Elem().Kind() == reflect.Struct) {
@@ -108,7 +117,7 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 
 		if opts != nil && tagName == "_id" {
 			if opts.UseIDifAvailable {
-				return bson.M{ "_id": val.Interface() }
+				return bson.M{"_id": val.Interface()}
 			}
 			if opts.RemoveID {
 				continue
@@ -116,9 +125,13 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 		}
 
 		// Decide whether to omit the field if it is empty or not
-		if tagOpts.Has("omitempty") {
+		if tagOpts.Has("omitempty") || (opts != nil && opts.GenerateFilter) {
 
-			// Handling edge cases that val.IsZero doesn't catch
+			if val.IsZero() {
+				continue
+			}
+
+			// Handling edge cases that reflect.value.IsZero doesn't catch
 			switch val.Kind() {
 			case reflect.Slice:
 				if val.Len() == 0 {
@@ -128,10 +141,6 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 				if len(val.MapKeys()) == 0 {
 					continue
 				}
-			}
-
-			if val.IsZero() {
-				continue
 			}
 		}
 
@@ -212,9 +221,7 @@ func (s *StructToBSON) nestedData(val reflect.Value, opts *MappingOpts) interfac
 		}
 
 		// If we need to iterate over some form of struct in the map
-		// ie. map[string]StructType || map[string][]StructType
-		//
-		// FIXME - It cannot deal with map[string]*struct
+		// ie. map[string]struct
 		if mapElem.Kind() == reflect.Struct || (mapElem.Kind() == reflect.Slice && mapElem.Elem().Kind() == reflect.Struct) {
 			m := bson.M{}
 			for _, k := range val.MapKeys() {
@@ -228,11 +235,6 @@ func (s *StructToBSON) nestedData(val reflect.Value, opts *MappingOpts) interfac
 	case reflect.Slice, reflect.Array:
 		if val.Type().Kind() == reflect.Ptr {
 			val = val.Elem()
-		}
-
-		if val.Type().Kind() == reflect.Interface {
-			finalVal = val.Interface()
-			break
 		}
 
 		// Ensuring there are no structs (which require further iteration) anywhere within the slice/array

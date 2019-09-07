@@ -103,7 +103,7 @@ var _ = Describe("structVal", func() {
 			Entry("a bool is passed", PanicTestCase{input: true}),
 			Entry("a slice is passed", PanicTestCase{input: []int{1, 2, 3}}),
 			Entry("a map is passed", PanicTestCase{input: map[string]struct{}{"Test 1": struct{}{}, "Test 2": struct{}{}}}),
-			Entry("a function is passed", PanicTestCase{input: func (){}}),
+			Entry("a function is passed", PanicTestCase{input: func() {}}),
 			Entry("a pointer to a string is passed", PanicTestCase{input: new(string)}),
 			Entry("a pointer to an int is passed", PanicTestCase{input: new(int)}),
 			Entry("a pointer to a bool is passed", PanicTestCase{input: new(bool)}),

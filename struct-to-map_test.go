@@ -35,11 +35,30 @@ var _ = Describe("Utility method", func() {
 			}{
 				TestField1: "Test String",
 				TestField2: true,
-			})
+			},
+		)
 
 		testStruct.SetTagName("TestTag")
 		Expect(testStruct.TagName).To(Equal("TestTag"))
 	})
+
+	DescribeTable("CovertStructToBSONMap should return nil if", func(c interface{}) {
+		result := ConvertStructToBSONMap(c, nil)
+		Expect(result).To(BeNil())
+	},
+		Entry("a string is passed", "Test String"),
+		Entry("an int is passed", 123),
+		Entry("a bool is passed", true),
+		Entry("a slice is passed", []int{1, 2, 3}),
+		Entry("a map is passed", map[string]struct{}{"Test 1": struct{}{}, "Test 2": struct{}{}}),
+		Entry("a function is passed", func() {}),
+		Entry("a pointer to a string is passed", new(string)),
+		Entry("a pointer to an int is passed", new(int)),
+		Entry("a pointer to a bool is passed", new(bool)),
+		Entry("a pointer to a slice is passed", new([]int)),
+		Entry("a pointer to a map is passed", new(map[string]struct{})),
+		Entry("a pointer to a function is passed", new(func())),
+	)
 })
 
 var _ = Describe("The Mapping functions", func() {
@@ -118,14 +137,13 @@ var _ = Describe("The Mapping functions", func() {
 			Map         map[string]int `bson:"map"`
 
 			// Pointers
-			StrPtr         *string         `bson:"strPtr"`
-			NumPtr         *int            `bson:"numPtr"`
-			BoolPtr        *bool           `bson:"boolPtr"`
-			FloatPtr       *float64        `bson:"floatPtr"`
-			TimePtr        *time.Time      `bson:"timePtr"`
-			SliceIntPtr    *[]int          `bson:"sliceIntPtr"`
-			SliceStringPtr *[]string       `bson:"sliceStringPtr"`
-			MapPtr         *map[string]int `bson:"mapPtr"`
+			StrPtr         *string    `bson:"strPtr"`
+			NumPtr         *int       `bson:"numPtr"`
+			BoolPtr        *bool      `bson:"boolPtr"`
+			FloatPtr       *float64   `bson:"floatPtr"`
+			TimePtr        *time.Time `bson:"timePtr"`
+			SliceIntPtr    *[]int     `bson:"sliceIntPtr"`
+			SliceStringPtr *[]string  `bson:"sliceStringPtr"`
 		}
 
 		var validValues valueStruct
@@ -139,7 +157,7 @@ var _ = Describe("The Mapping functions", func() {
 				Time:        time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 				SliceInt:    []int{1, 2, 3},
 				SliceString: []string{"Test1", "Test 2"},
-				Map:         map[string]int{"Test 1": 10, "Test 2!": 100},
+				Map:         map[string]int{"Test 1": 0, "Test 2!": 100, "Test 3": -100},
 			}
 		})
 
@@ -165,7 +183,6 @@ var _ = Describe("The Mapping functions", func() {
 					TimePtr:        &validValues.Time,
 					SliceIntPtr:    &validValues.SliceInt,
 					SliceStringPtr: &validValues.SliceString,
-					MapPtr:         &validValues.Map,
 				}
 
 				expected = bson.M{
@@ -185,7 +202,6 @@ var _ = Describe("The Mapping functions", func() {
 					"timePtr":        &validValues.Time,
 					"sliceIntPtr":    validValues.SliceInt,
 					"sliceStringPtr": validValues.SliceString,
-					"mapPtr":         &validValues.Map,
 				}
 			})
 			It("should map a flat struct with nil options", func() {
@@ -222,7 +238,7 @@ var _ = Describe("The Mapping functions", func() {
 		})
 	})
 
-	// Testing the functionality of the Mapping zero values
+	// Testing the functionality of the mapping zero values
 	Context("should ignore zero values when flagged with omitempty", func() {
 		DescribeTable("the type is", func(c interface{}) {
 			result := ConvertStructToBSONMap(c, nil)
@@ -253,11 +269,310 @@ var _ = Describe("The Mapping functions", func() {
 			}{
 				Input: map[string]struct{}{},
 			}),
+			Entry("a struct", struct {
+				Input struct{} `bson:"Input,omitempty"`
+			}{
+				Input: struct{}{},
+			}),
 			Entry("a nil value", struct {
 				Input *struct{} `bson:"Input,omitempty"`
 			}{
 				Input: nil,
 			}),
 		)
+	})
+
+	// Testing the functionality of the "string" tag
+	Context("should convert", func() {
+		It("a struct that implements Stringer interface to a string", func() {
+			// Using time.Time as it implements the Stringer interface
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 time.Time `bson:"testField1,string"`
+				}{
+					TestField1: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+				}, nil,
+			)
+			Expect(result).To(Equal(bson.M{"testField1": "2000-01-01 00:00:00 +0000 UTC"}))
+		})
+	})
+
+	// Testing the functionality of nested structs
+	Context("should correctly parse", func() {
+		type valueStruct struct {
+			String string         `bson:"str"`
+			Slice  []string       `bson:"slice"`
+			Map    map[string]int `bson:"map"`
+			Time   time.Time      `bson:"time"`
+		}
+
+		var valuesStruct valueStruct
+		BeforeEach(func() {
+			valuesStruct = valueStruct{
+				String: "Test String",
+				Slice:  []string{"Test 1", "!@£$%^&*()", ""},
+				Map:    map[string]int{"Test 1": 100, "Test 2!": 0, "Test 3": -100},
+				Time:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+		})
+
+		It("a nested struct", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 string      `bson:"testField1"`
+					TestField2 valueStruct `bson:"nestedStruct"`
+				}{
+					TestField1: valuesStruct.String,
+					TestField2: valueStruct{
+						String: valuesStruct.String,
+						Slice:  valuesStruct.Slice,
+						Map:    valuesStruct.Map,
+						Time:   valuesStruct.Time,
+					},
+				}, nil,
+			)
+
+			expected := bson.M{
+				"str":   valuesStruct.String,
+				"slice": valuesStruct.Slice,
+				"map":   valuesStruct.Map,
+				"time":  valuesStruct.Time,
+			}
+
+			Expect(result["testField1"]).To(Equal(valuesStruct.String))
+			for k, _ := range result["nestedStruct"].(bson.M) {
+				Expect(result["nestedStruct"].(bson.M)[k]).To(Equal(expected[k]))
+			}
+		})
+
+		It("a pointer to a nested struct", func() {
+			result := ConvertStructToBSONMap(
+				&struct {
+					TestField1 string      `bson:"testField1"`
+					TestField2 valueStruct `bson:"nestedStruct"`
+				}{
+					TestField1: valuesStruct.String,
+					TestField2: valueStruct{
+						String: valuesStruct.String,
+						Slice:  valuesStruct.Slice,
+						Map:    valuesStruct.Map,
+						Time:   valuesStruct.Time,
+					},
+				}, nil,
+			)
+
+			expected := bson.M{
+				"str":   valuesStruct.String,
+				"slice": valuesStruct.Slice,
+				"map":   valuesStruct.Map,
+				"time":  valuesStruct.Time,
+			}
+
+			Expect(result["testField1"]).To(Equal(valuesStruct.String))
+			for k, _ := range result["nestedStruct"].(bson.M) {
+				Expect(result["nestedStruct"].(bson.M)[k]).To(Equal(expected[k]))
+			}
+		})
+
+		It("a nested struct with the omitnested tag", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 string      `bson:"testField1"`
+					TestField2 valueStruct `bson:"nestedStruct,omitnested"`
+				}{
+					TestField1: valuesStruct.String,
+					TestField2: valueStruct{
+						String: valuesStruct.String,
+						Slice:  valuesStruct.Slice,
+						Map:    valuesStruct.Map,
+						Time:   valuesStruct.Time,
+					},
+				}, nil,
+			)
+
+			expected := bson.M{
+				"testField1": valuesStruct.String,
+				"nestedStruct": valueStruct{
+					String: valuesStruct.String,
+					Slice:  valuesStruct.Slice,
+					Map:    valuesStruct.Map,
+					Time:   valuesStruct.Time,
+				},
+			}
+
+			Expect(result).To(Equal(expected))
+		})
+
+		It("a nested struct with the flatten tag", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 string      `bson:"testField1"`
+					TestField2 valueStruct `bson:"nestedStruct,flatten"`
+				}{
+					TestField1: valuesStruct.String,
+					TestField2: valueStruct{
+						String: valuesStruct.String,
+						Slice:  valuesStruct.Slice,
+						Map:    valuesStruct.Map,
+						Time:   valuesStruct.Time,
+					},
+				}, nil,
+			)
+
+			expected := bson.M{
+				"testField1": valuesStruct.String,
+				"str":        valuesStruct.String,
+				"slice":      valuesStruct.Slice,
+				"map":        valuesStruct.Map,
+				"time":       valuesStruct.Time,
+			}
+
+			Expect(result).To(Equal(expected))
+		})
+
+		It("a nested struct with a slice of interfaces", func() {
+			type interfaceStruct struct {
+				TestField3 []interface{} `bson:"interfaces"`
+			}
+
+			t := []int{1,2,3,4}
+			interfaceSlice := make([]interface{}, len(t))
+			for i, v := range t {
+				interfaceSlice[i] = v
+			}
+
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 string          `bson:"testField1"`
+					TestField2 interfaceStruct `bson:"nestedStruct"`
+				}{
+					TestField1: valuesStruct.String,
+					TestField2: interfaceStruct{
+						TestField3: interfaceSlice,
+					},
+				}, nil,
+			)
+
+			expected := bson.M{
+				"testField1":   valuesStruct.String,
+				"nestedStruct": bson.M {
+					"interfaces": interfaceSlice,
+				},
+			}
+
+			Expect(result).To(Equal(expected))
+		})
+	})
+
+	// Testing the functionality of a slice of structs
+	Context("should correctly parse", func() {
+		type valueStruct struct {
+			String string         `bson:"str"`
+			Slice  []string       `bson:"slice"`
+			Map    map[string]int `bson:"map"`
+			Time   time.Time      `bson:"time"`
+		}
+
+		var valuesStruct valueStruct
+		var expectedStruct bson.M
+
+		BeforeEach(func() {
+			valuesStruct = valueStruct{
+				String: "Test String",
+				Slice:  []string{"Test 1", "!@£$%^&*()", ""},
+				Map:    map[string]int{"Test 1": 100, "Test 2!": 0, "Test 3": -100},
+				Time:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+			expectedStruct = bson.M{
+				"str":   valuesStruct.String,
+				"slice": valuesStruct.Slice,
+				"map":   valuesStruct.Map,
+				"time":  valuesStruct.Time,
+			}
+		})
+
+		It("a slice of structs", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 []valueStruct `bson:"sliceStruct"`
+				}{
+					TestField1: []valueStruct{valuesStruct, valuesStruct},
+				}, nil,
+			)
+
+			Expect(len(result["sliceStruct"].([]interface{}))).To(Equal(2))
+			Expect(result["sliceStruct"].([]interface{})[0]).To(Equal(expectedStruct))
+			Expect(result["sliceStruct"].([]interface{})[1]).To(Equal(expectedStruct))
+		})
+
+		It("a slice of pointers to structs", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 []*valueStruct `bson:"sliceStruct"`
+				}{
+					TestField1: []*valueStruct{&valuesStruct, &valuesStruct},
+				}, nil,
+			)
+
+			Expect(len(result["sliceStruct"].([]interface{}))).To(Equal(2))
+			Expect(result["sliceStruct"].([]interface{})[0]).To(Equal(expectedStruct))
+			Expect(result["sliceStruct"].([]interface{})[1]).To(Equal(expectedStruct))
+		})
+	})
+
+	// Testing the functionality of a map of structs
+	Context("should correctly parse", func() {
+		type valueStruct struct {
+			String string         `bson:"str"`
+			Slice  []string       `bson:"slice"`
+			Map    map[string]int `bson:"map"`
+			Time   time.Time      `bson:"time"`
+		}
+
+		var valuesStruct valueStruct
+		var expectedStruct bson.M
+
+		BeforeEach(func() {
+			valuesStruct = valueStruct{
+				String: "Test String",
+				Slice:  []string{"Test 1", "!@£$%^&*()", ""},
+				Map:    map[string]int{"Test 1": 100, "Test 2!": 0, "Test 3": -100},
+				Time:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+			expectedStruct = bson.M{
+				"str":   valuesStruct.String,
+				"slice": valuesStruct.Slice,
+				"map":   valuesStruct.Map,
+				"time":  valuesStruct.Time,
+			}
+		})
+
+		It("a map of structs", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 map[string]valueStruct `bson:"mapStruct"`
+				}{
+					TestField1: map[string]valueStruct{"Test 1": valuesStruct, "Test 2": valuesStruct},
+				}, nil,
+			)
+
+			Expect(len(result["mapStruct"].(bson.M))).To(Equal(2))
+			Expect(result["mapStruct"].(bson.M)["Test 1"]).To(Equal(expectedStruct))
+			Expect(result["mapStruct"].(bson.M)["Test 2"]).To(Equal(expectedStruct))
+		})
+
+		It("a map of pointers to structs", func() {
+			result := ConvertStructToBSONMap(
+				struct {
+					TestField1 map[string]*valueStruct `bson:"mapStruct"`
+				}{
+					TestField1: map[string]*valueStruct{"Test 1": &valuesStruct, "Test 2": &valuesStruct},
+				}, nil,
+			)
+
+			Expect(len(result["mapStruct"].(bson.M))).To(Equal(2))
+			Expect(result["mapStruct"].(bson.M)["Test 1"]).To(Equal(expectedStruct))
+			Expect(result["mapStruct"].(bson.M)["Test 2"]).To(Equal(expectedStruct))
+		})
 	})
 })
