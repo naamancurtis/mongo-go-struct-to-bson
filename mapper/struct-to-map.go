@@ -1,4 +1,4 @@
-package main
+package mapper
 
 import (
 	"fmt"
@@ -60,6 +60,8 @@ func NewBSONMapperStruct(s interface{}) *StructToBSON {
 	}
 }
 
+// Sets the tag name to be parsed
+//  // Default: `bson`
 func (s *StructToBSON) SetTagName(tag string) {
 	s.TagName = tag
 }
@@ -90,6 +92,14 @@ func (s *StructToBSON) SetTagName(tag string) {
 //   //    { Key: "myFirstValue", Value: "Example String" },
 //   //    { Key: "myIntSlice", Value: {1, 2, 3, 4, 5} },
 //   // }
+//
+// The following tags are factored into the parsing:
+//
+// 	 // "omitempty" - Omit if the value is the zero value
+// 	 // "omitnested" - Pass the value as opposed to recursively mapping the struct
+// 	 // "flatten" - Pull out the data from the nested struct up one level
+// 	 // "string" - Use the implementation of the Stringer interface for the value
+// 	 // "-" - Do not map this field
 //
 func ConvertStructToBSONMap(s interface{}, opts *MappingOpts) bson.M {
 	if reflect.ValueOf(s).Kind() != reflect.Struct && !(reflect.ValueOf(s).Kind() == reflect.Ptr && reflect.ValueOf(s).Elem().Kind() == reflect.Struct) {
