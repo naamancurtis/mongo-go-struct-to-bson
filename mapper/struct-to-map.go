@@ -25,28 +25,30 @@ type StructToBSON struct {
 }
 
 type MappingOpts struct {
-	// Will just return a map with {_id: idVal} if it is present at the Top Level of the struct, else it returns all
-	// other fields
-	// Setting true on this flag over-writes means this result is prioritised over all other options that clash
-	// with this Behavior.
+	// Will just return bson.M { "_id": idVal } if the "_id" tag is present in that struct, if it is not present or holds a zero value
+	// it will map the struct as you would expect.
+	// Setting true on this flag gives it priority over all other functionality. ie. If "_id" is present, all other fields will be ignored
+	//
+	// This option is included in recursive calls, so if a nested struct has an "_id" tag (and the top level struct didn't) then the
+	// nested struct field in the bson.M will only hold the { "_id": idVal } result.
 	//
 	//   Default: False
 	UseIDifAvailable bool
 
-	// Set to true if you require _id removed from your map
-	// This will remove _id properties from nested data structures as well
+	// Will remove any "_id" fields from your bson.M
+	// Note: this will remove "_id" fields from nested data structures as well
 	//
 	// 	Default: False
 	RemoveID bool
 
-	// Set to true if you are generating a filter
 	// If true, it will check all struct fields for zero type values and
-	// omit any that are found regardless of any tag options
+	// omit any that are found regardless of any tag options, effectively it enforces
+	// the behaviour of the "omitempty" tag, regardless of whether the struct field has it or not
 	//
 	// This logic occurs after UseIDifAvailable & RemoveID
 	//
 	// 	Default: False
-	GenerateFilter bool
+	GenerateFilterOrPatch bool
 }
 
 // Returns the Input struct wrapped by the mapper struct
@@ -69,7 +71,6 @@ func (s *StructToBSON) SetTagName(tag string) {
 // Wraps a struct and converts it to a BSON Map, factoring in any options passed
 // as arguments
 //
-// TODO - Add documentation about "-" "omitempty", "omitnested", "flatten", "string
 // It uses the tag name `bson` on the struct fields to generate the map
 //
 // The mapping is recursive for any data structures contained within the struct
@@ -96,7 +97,7 @@ func (s *StructToBSON) SetTagName(tag string) {
 // The following tags are factored into the parsing:
 //
 // 	 // "omitempty" - Omit if the value is the zero value
-// 	 // "omitnested" - Pass the value as opposed to recursively mapping the struct
+// 	 // "omitnested" - Pass the value of the struct directly as opposed to recursively mapping the struct
 // 	 // "flatten" - Pull out the data from the nested struct up one level
 // 	 // "string" - Use the implementation of the Stringer interface for the value
 // 	 // "-" - Do not map this field
@@ -126,7 +127,7 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 		}
 
 		if opts != nil && tagName == "_id" {
-			if opts.UseIDifAvailable {
+			if opts.UseIDifAvailable && val.Interface() != "" {
 				return bson.M{"_id": val.Interface()}
 			}
 			if opts.RemoveID {
@@ -135,7 +136,7 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 		}
 
 		// Decide whether to omit the field if it is empty or not
-		if tagOpts.Has("omitempty") || (opts != nil && opts.GenerateFilter) {
+		if tagOpts.Has("omitempty") || (opts != nil && opts.GenerateFilterOrPatch) {
 
 			if val.IsZero() {
 				continue
