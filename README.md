@@ -1,5 +1,7 @@
 <h1> Mongo Go - Struct to BSON </h1>
 
+[![Build Status](https://travis-ci.com/naamancurtis/mongo-go-struct-to-bson.svg?branch=master)](https://travis-ci.com/naamancurtis/mongo-go-struct-to-bson) [![codecov](https://codecov.io/gh/naamancurtis/mongo-go-struct-to-bson/branch/master/graph/badge.svg)](https://codecov.io/gh/naamancurtis/mongo-go-struct-to-bson) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Provides utility methods to support the converting of `structs` to `bson maps` for use in various MongoDB queries/patch updates. It is intended to be used alongside the [Mongo-Go Driver](https://github.com/mongodb/mongo-go-driver)
 
 Essentially it will convert a `struct` to `bson.M`
@@ -137,7 +139,7 @@ user = User {
 result := ConvertStructToBSONMap(user, &MappingOpts{UseIDifAvailable: true})
 
 // result would be:
-bson.M { "\_id": "54759eb3c090d83494e2d804" }
+bson.M { "_id": "54759eb3c090d83494e2d804" }
 // Value is indicative - it would actually hold the primitive.ObjectID value
 ```
 

@@ -9,4 +9,8 @@ install:
   - go get -v ./...
   - export PATH=$PATH:$HOME/gopath/bin
 
-script: ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2
+script:
+  - ginkgo -r -coverprofile=coverage.txt --randomizeAllSpecs --randomizeSuites --failOnPending  --trace --race --compilers=2
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
