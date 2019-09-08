@@ -1,3 +1,6 @@
+// Provides utility methods to support the converting of structs to bson maps for use in various MongoDB queries/patch updates.
+//
+// It is intended to be used alongside the Mongo-Go Driver
 package mapper
 
 import (
@@ -7,9 +10,6 @@ import (
 	"reflect"
 )
 
-// Provides utility methods to support the converting of structs to bson maps for use in various MongoDB queries/patch updates.
-// It is intended to be used alongside the Mongo-Go Driver
-//
 // Package built based off https://github.com/fatih/structs/
 
 var (
@@ -36,13 +36,13 @@ type MappingOpts struct {
 	// This option is included in recursive calls, so if a nested struct has an "_id" tag (and the top level struct didn't) then the
 	// nested struct field in the bson.M will only hold the { "_id": idVal } result.
 	//
-	//   Default: False
+	//   // Default: False
 	UseIDifAvailable bool
 
 	// Will remove any "_id" fields from your bson.M
 	// Note: this will remove "_id" fields from nested data structures as well
 	//
-	// 	Default: False
+	// 	// Default: False
 	RemoveID bool
 
 	// If true, it will check all struct fields for zero type values and
@@ -51,7 +51,7 @@ type MappingOpts struct {
 	//
 	// This logic occurs after UseIDifAvailable & RemoveID
 	//
-	// 	Default: False
+	// 	// Default: False
 	GenerateFilterOrPatch bool
 }
 
@@ -81,10 +81,10 @@ func (s *StructToBSON) SetTagName(tag string) {
 //
 // Example StructToBSON to be converted:
 //
-//   // type ExampleStruct struct {
-//   //    Value1 string `bson:"myFirstValue"`
-//   //	   Value2 []int `bson:"myIntSlice"`
-//   // }
+//   type ExampleStruct struct {
+//      Value1 string `bson:"myFirstValue"`
+//      Value2 []int `bson:"myIntSlice"`
+//   }
 //
 // The struct is first wrapped with the "StructToBSON" type to give
 // access to the mapping functions
@@ -92,11 +92,10 @@ func (s *StructToBSON) SetTagName(tag string) {
 // The struct is then converted to a bson.M and returned
 //
 // Returns:
-//
-//   // bson.M {
-//   //    { Key: "myFirstValue", Value: "Example String" },
-//   //    { Key: "myIntSlice", Value: {1, 2, 3, 4, 5} },
-//   // }
+//   bson.M {
+//      { Key: "myFirstValue", Value: "Example String" },
+//      { Key: "myIntSlice", Value: {1, 2, 3, 4, 5} },
+//   }
 //
 // The following tags are factored into the parsing:
 //
