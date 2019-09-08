@@ -33,12 +33,24 @@ To get started quickly simply import the package and set up the struct you want 
 type User struct {
   ID        primitive.ObjectID `bson:"_id"`
   FirstName string `bson:"firstName"`
-  LastName  string `bson:"lastName,omitempty"` // "omitempty" fields will not exist in the bson.M if they hold a zero value
-  DoB       time.Time `bson:"dob,string"` // "string" fields will hold the string value as defined by their implementation of the Stringer() interface
-  Characteristics *Characteristics `bson:"characteristics,flatten"` // "flatten" fields will have all of the fields within the nested struct moved up one level in the map to sit at the higher level
-  Metadata  Metadata `bson:"metadata,omitnested"` // "omitnested" fields will not be recursively mapped, instead it will just hold the value
-  Secret string `bson:"-"` // "-" fields will not be mapped at all
-  favouriteColor string // Unexported fields will not be mapped
+
+  // "omitempty" fields will not exist in the bson.M if they hold a zero value
+  LastName  string `bson:"lastName,omitempty"`
+
+  // "string" fields will hold the string value as defined by their implementation of the Stringer() interface
+  DoB       time.Time `bson:"dob,string"`
+
+  // "flatten" fields will have all of the fields within the nested struct moved up one level in the map to sit at the higher level
+  Characteristics *Characteristics `bson:"characteristics,flatten"`
+
+  // "omitnested" fields will not be recursively mapped, instead it will just hold the value
+  Metadata  Metadata `bson:"metadata,omitnested"`
+
+  // "-" fields will not be mapped at all
+  Secret string `bson:"-"`
+
+  // Unexported fields will not be mapped
+  favouriteColor string
 }
 
 type Characteristics struct {
@@ -55,7 +67,7 @@ Then in order to map the struct you can use the convience method `ConvertStructT
 
 ```go
 user = User {
-  ID:              "54759eb3c090d83494e2d804", // Value is indicative - it would actually hold the primitive.ObjectID value
+  ID:              "54759eb3c090d83494e2d804", // would actually hold the primitive.ObjectID value
   FirstName:       "Jane",
   LastName:        "",
   DoB:             time.Date(1985,6,15,0,0,0,0,time.UTC),
@@ -73,16 +85,21 @@ result := ConvertStructToBSONMap(user, nil)
 
 // The result would be:
 bson.M {
-  "_id": "54759eb3c090d83494e2d804", // Value is indicative - it would actually hold the primitive.ObjectID value
+  "_id": "54759eb3c090d83494e2d804", // would actually hold the primitive.ObjectID value
   "firstName": "Jane",
-  // Note: lastName has been omitted as it held the zero value for a string
-  "dob": "1985-06-15 00:00:00 +0000 UTC", // dob holds the Stringer() representation of time.Time
-  "leftHanded": true, // These are the Characteristics struct which have been flattened
-  "tall": false, // These are the Characteristics struct which have been flattened
-  "metadata": Metadata { // As this had the "omitnested" tag, this holds the actual value of the struct, not a bson.M of it
+  "dob": "1985-06-15 00:00:00 +0000 UTC",
+  "leftHanded": true,
+  "tall": false,
+  "metadata": Metadata {
     LastActive: time.Date(2019, 7,23, 14,0,0,0,time.UTC)
   },
-  // Note: secret and favouriteColor have been omitted, as they had the "-" or were unexported
+
+  // Notes:
+  // - dob: holds the Stringer() representation of time.Time
+  // - Characterstics: struct has been flattened, so it's values are one level up
+  // - Metadata: had the omitnested tag, so holds the actual value of the struct, not a bson.M
+  // - lastName: has been omitted as it held the zero value for a string
+  // - secret & favouriteColor: have been omitted, as they either had the "-" tag or were unexported
 }
 ```
 
@@ -112,19 +129,21 @@ user = User {
   Secret:          "secret",
   favouriteColor:  "blue",
 }
+```
 
-// ==================================
+<h6>UseIDifAvailable = true</h6>
 
-// UseIDifAvailable = true
+```go
 result := ConvertStructToBSONMap(user, &MappingOpts{UseIDifAvailable: true})
 
 // result would be:
-bson.M { "_id": "54759eb3c090d83494e2d804" } // Value is indicative - it would actually hold the primitive.ObjectID value
+bson.M { "\_id": "54759eb3c090d83494e2d804" }
+// Value is indicative - it would actually hold the primitive.ObjectID value
+```
 
-// ==================================
+<h6>RemoveID = true</h6>
 
-// RemoveID = true
-
+```go
 result := ConvertStructToBSONMap(user, &MappingOpts{RemoveID: true})
 
 // result would be:
@@ -135,11 +154,11 @@ bson.M {
   "tall": false,
   "metadata": Metadata{LastActive: time.Date(2019, 7, 23, 14, 0, 0, 0, time.UTC)},
 }
+```
 
-// ==================================
+<h6>GenerateFilterOrPatch = true</h6>
 
-// GenerateFilterOrPatch = true
-
+```go
 // Using a modified user:
 user = User {
   FirstName:       "Jane",
@@ -159,17 +178,16 @@ bson.M {
   "leftHanded": true,
 }
 
-// Note on the behaviour here: As go uses zero values, lastName & Characteristics.Tall are ignored, as they hold zero values.
+// Note on the behaviour here: As go uses zero values, lastName & Characteristics.Tall
+// are ignored, as they hold zero values.
 // Please be aware of this when using this package
 ```
 
 #### Using a different Tag Name
 
-By default, the mapper uses the `"bson"` tag to identify what options and names should be assigned to each struct field. It is possible to change this to a custom tag if desired.
+By default, the mapper uses the `"bson"` tag to identify what options and names should be assigned to each struct field. It is possible to change this to a custom tag if desired. In order to do so you need to split up the creation and mapping of your struct:
 
 ```go
-// In order to do so you need to split up the creation and mapping of your struct
-
 // 1. Create the struct wrapper
 tempStruct := NewBSONMapperStruct(myStruct)
 
