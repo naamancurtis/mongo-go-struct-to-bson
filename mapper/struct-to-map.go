@@ -7,6 +7,9 @@ import (
 	"reflect"
 )
 
+// Provides utility methods to support the converting of structs to bson maps for use in various MongoDB queries/patch updates.
+// It is intended to be used alongside the Mongo-Go Driver
+//
 // Package built based off https://github.com/fatih/structs/
 
 var (
@@ -17,13 +20,14 @@ var (
 	DefaultTagName = "bson"
 )
 
-// The wrapper for your struct that enables this package to work
+// StructToBson is the wrapper for a struct that enables this package to work
 type StructToBSON struct {
 	raw     interface{}
 	value   reflect.Value
 	TagName string
 }
 
+// MappingOpts allows the setting of options while mapping a struct
 type MappingOpts struct {
 	// Will just return bson.M { "_id": idVal } if the "_id" tag is present in that struct, if it is not present or holds a zero value
 	// it will map the struct as you would expect.
@@ -51,7 +55,7 @@ type MappingOpts struct {
 	GenerateFilterOrPatch bool
 }
 
-// Returns the Input struct wrapped by the mapper struct
+// NewBSONMapperStruct returns the Input struct wrapped by the mapper struct
 //
 // Panics if the argument is not a struct or pointer to a struct
 func NewBSONMapperStruct(s interface{}) *StructToBSON {
@@ -62,13 +66,13 @@ func NewBSONMapperStruct(s interface{}) *StructToBSON {
 	}
 }
 
-// Sets the tag name to be parsed
+// SetTagName sets the tag name to be parsed
 //  // Default: `bson`
 func (s *StructToBSON) SetTagName(tag string) {
 	s.TagName = tag
 }
 
-// Wraps a struct and converts it to a BSON Map, factoring in any options passed
+// ConvertStructToBSONMap wraps a struct and converts it to a BSON Map, factoring in any options passed
 // as arguments
 //
 // It uses the tag name `bson` on the struct fields to generate the map
@@ -109,6 +113,9 @@ func ConvertStructToBSONMap(s interface{}, opts *MappingOpts) bson.M {
 	return NewBSONMapperStruct(s).ToBSONMap(opts)
 }
 
+// ToBSONMap parses all struct fields and returns a bson.M { tagName: value }
+// If there are nested structs within the top level struct, it calls
+// nestedData(opts), to recursively map the nested structs too.
 func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 	out := bson.M{}
 
@@ -197,8 +204,8 @@ func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 	return out
 }
 
-// Identifies the nested data type and recursively iterates over it
-// to return a BSON document for the nested data structure
+// nestedData identifies the nested data type and iterates over it
+// to return a BSON map for the nested data structure
 func (s *StructToBSON) nestedData(val reflect.Value, opts *MappingOpts) interface{} {
 	var finalVal interface{}
 	v := reflect.ValueOf(val.Interface())

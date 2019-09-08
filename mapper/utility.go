@@ -2,7 +2,7 @@ package mapper
 
 import "reflect"
 
-// Returns a slice of all of the StructFields within a given struct
+// structFields returns a slice of all of the StructFields within a given struct
 func (s *StructToBSON) structFields() []reflect.StructField {
 	t := s.value.Type()
 
@@ -26,7 +26,7 @@ func (s *StructToBSON) structFields() []reflect.StructField {
 	return f
 }
 
-// Checks if the argument is a struct or a pointer to a struct
+// structVal checks if the argument is a struct or a pointer to a struct
 // if so it returns the reflected value of the struct
 //
 // Panics if a struct || *struct is not passed to the function
