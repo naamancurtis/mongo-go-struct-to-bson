@@ -13,7 +13,7 @@ import (
 // Package built based off https://github.com/fatih/structs/
 
 var (
-	// By default, this package uses "bson" as the tag name
+	// By default, this package uses `bson` as the tag name
 	// You can over-write this once you have wrapped your struct
 	// in the mapping struct (StructToBSON) by chaining the
 	// .SetTagName() call on the wrapped struct.
@@ -27,13 +27,15 @@ type StructToBSON struct {
 	TagName string
 }
 
-// MappingOpts allows the setting of options while mapping a struct
+// MappingOpts allows the setting of options which drive the behaviour behind how the struct is parsed
 type MappingOpts struct {
-	// Will just return bson.M { "_id": idVal } if the "_id" tag is present in that struct, if it is not present or holds a zero value
-	// it will map the struct as you would expect.
-	// Setting true on this flag gives it priority over all other functionality. ie. If "_id" is present, all other fields will be ignored
+	// Will just return bson.M { "_id": idVal } if the "_id" tag is present in that struct,
+	// if it is not present or holds a zero value it will map the struct as you would expect.
+	// Setting true on this flag gives it priority over all other functionality.
+	// ie. If "_id" is present, all other fields will be ignored
 	//
-	// This option is included in recursive calls, so if a nested struct has an "_id" tag (and the top level struct didn't) then the
+	// This option is included in recursive calls, so if a nested struct
+	// has an "_id" tag (and the top level struct didn't) then the
 	// nested struct field in the bson.M will only hold the { "_id": idVal } result.
 	//
 	//   // Default: False
@@ -47,7 +49,8 @@ type MappingOpts struct {
 
 	// If true, it will check all struct fields for zero type values and
 	// omit any that are found regardless of any tag options, effectively it enforces
-	// the behaviour of the "omitempty" tag, regardless of whether the struct field has it or not
+	// the behaviour of the "omitempty" tag, regardless of whether the struct field
+	// has it or not
 	//
 	// This logic occurs after UseIDifAvailable & RemoveID
 	//
@@ -55,7 +58,8 @@ type MappingOpts struct {
 	GenerateFilterOrPatch bool
 }
 
-// NewBSONMapperStruct returns the Input struct wrapped by the mapper struct
+// NewBSONMapperStruct returns the input struct wrapped by the mapper struct
+// along with the tag name which should be parsed in the mapping
 //
 // Panics if the argument is not a struct or pointer to a struct
 func NewBSONMapperStruct(s interface{}) *StructToBSON {
@@ -67,16 +71,13 @@ func NewBSONMapperStruct(s interface{}) *StructToBSON {
 }
 
 // SetTagName sets the tag name to be parsed
-//  // Default: `bson`
 func (s *StructToBSON) SetTagName(tag string) {
 	s.TagName = tag
 }
 
 // ConvertStructToBSONMap wraps a struct and converts it to a BSON Map, factoring in any options passed
 // as arguments
-//
-// It uses the tag name `bson` on the struct fields to generate the map
-//
+// By default, it uses the tag name `bson` on the struct fields to generate the map
 // The mapping is recursive for any data structures contained within the struct
 //
 // Example StructToBSON to be converted:
@@ -87,17 +88,14 @@ func (s *StructToBSON) SetTagName(tag string) {
 //   }
 //
 // The struct is first wrapped with the "StructToBSON" type to give
-// access to the mapping functions
+// access to the mapping functions and is then converted to a bson.M
 //
-// The struct is then converted to a bson.M and returned
-//
-// Returns:
 //   bson.M {
 //      { Key: "myFirstValue", Value: "Example String" },
 //      { Key: "myIntSlice", Value: {1, 2, 3, 4, 5} },
 //   }
 //
-// The following tags are factored into the parsing:
+// The following tag options are factored into the parsing:
 //
 // 	 // "omitempty" - Omit if the value is the zero value
 // 	 // "omitnested" - Pass the value of the struct directly as opposed to recursively mapping the struct
@@ -112,9 +110,8 @@ func ConvertStructToBSONMap(s interface{}, opts *MappingOpts) bson.M {
 	return NewBSONMapperStruct(s).ToBSONMap(opts)
 }
 
-// ToBSONMap parses all struct fields and returns a bson.M { tagName: value }
-// If there are nested structs within the top level struct, it calls
-// nestedData(opts), to recursively map the nested structs too.
+// ToBSONMap parses all struct fields and returns a bson.M { tagName: value }.
+// If there are nested structs it calls recursively maps them as well
 func (s *StructToBSON) ToBSONMap(opts *MappingOpts) bson.M {
 	out := bson.M{}
 
