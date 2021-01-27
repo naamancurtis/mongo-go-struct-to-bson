@@ -1,5 +1,10 @@
 <h1> Mongo Go - Struct to BSON </h1>
 
+## No longer actively maintained
+
+This package is no longer actively maintained, please feel free to fork it if
+you would like to continue it's use.
+
 [![Build Status](https://travis-ci.com/naamancurtis/mongo-go-struct-to-bson.svg?branch=master)](https://travis-ci.com/naamancurtis/mongo-go-struct-to-bson) [![codecov](https://codecov.io/gh/naamancurtis/mongo-go-struct-to-bson/branch/master/graph/badge.svg)](https://codecov.io/gh/naamancurtis/mongo-go-struct-to-bson) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![GoDoc](https://godoc.org/github.com/naamancurtis/mongo-go-struct-to-bson/mapper?status.svg)](https://godoc.org/github.com/naamancurtis/mongo-go-struct-to-bson/mapper)
 
 Provides utility methods to support the converting of `structs` to `bson maps` for use in various MongoDB queries/patch updates. It is intended to be used alongside the [Mongo-Go Driver](https://github.com/mongodb/mongo-go-driver)
