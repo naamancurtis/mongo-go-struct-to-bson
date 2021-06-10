@@ -88,7 +88,7 @@ user = User {
 }
 
 // Calling the Convert function - passing nil as the options for now.
-result := ConvertStructToBSONMap(user, nil)
+result := mapper.ConvertStructToBSONMap(user, nil)
 
 // The result would be:
 bson.M {
@@ -141,7 +141,7 @@ user = User {
 <h6>UseIDifAvailable = true</h6>
 
 ```go
-result := ConvertStructToBSONMap(user, &MappingOpts{UseIDifAvailable: true})
+result := mapper.ConvertStructToBSONMap(user, &mapper.MappingOpts{UseIDifAvailable: true})
 
 // result would be:
 bson.M { "_id": "54759eb3c090d83494e2d804" }
@@ -151,7 +151,7 @@ bson.M { "_id": "54759eb3c090d83494e2d804" }
 <h6>RemoveID = true</h6>
 
 ```go
-result := ConvertStructToBSONMap(user, &MappingOpts{RemoveID: true})
+result := mapper.ConvertStructToBSONMap(user, &mapper.MappingOpts{RemoveID: true})
 
 // result would be:
 bson.M {
@@ -177,7 +177,7 @@ user = User {
   favouriteColor:  "blue",
 }
 
-result := ConvertStructToBSONMap(user, &MappingOpts{GenerateFilterOrPatch: true})
+result := mapper.ConvertStructToBSONMap(user, &mapper.MappingOpts{GenerateFilterOrPatch: true})
 
 // result would be:
 bson.M {
@@ -196,7 +196,7 @@ By default, the mapper uses the `"bson"` tag to identify what options and names 
 
 ```go
 // 1. Create the struct wrapper
-tempStruct := NewBSONMapperStruct(myStruct)
+tempStruct := mapper.NewBSONMapperStruct(myStruct)
 
 // 2. Set the custom tag name
 tempStruct.SetTagName("customTag")
