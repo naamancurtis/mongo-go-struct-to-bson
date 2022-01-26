@@ -29,7 +29,7 @@ This was built by stripping down and modifying **Fatih Arslan** & **Cihangir Sav
 ### Installation
 
 ```sh
-go get https://github.com/naamancurtis/mongo-go-struct-to-bson
+go get github.com/naamancurtis/mongo-go-struct-to-bson
 ```
 
 ### Basic Usage & Examples
